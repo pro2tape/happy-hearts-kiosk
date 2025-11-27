@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
-import { ShoppingBag, ChevronRight, Star, Plus, Minus, Trash2, X, ChefHat, Coffee, IceCream, Utensils, Zap, CupSoda, Sandwich, Soup, Lock, ShieldCheck, LogOut, LayoutDashboard, Clock, Users, UserPlus, UserMinus, UserCheck, Settings, Save, UserX, KeyRound, Banknote, Timer, CheckCircle, Printer, UtensilsCrossed, Package, Image as ImageIcon, Edit3 } from 'lucide-react';
+import { ShoppingBag, ChevronRight, Star, Plus, Minus, Trash2, X, ChefHat, Coffee, IceCream, Utensils, Zap, CupSoda, Sandwich, Soup, Lock, ShieldCheck, LogOut, LayoutDashboard, Clock, Users, UserPlus, UserMinus, UserCheck, Settings, Save, UserX, KeyRound, Banknote, Timer, CheckCircle, Printer, UtensilsCrossed, Package, Image as ImageIcon, Edit3, FileSpreadsheet, BarChart3, Download } from 'lucide-react';
 import { CATEGORIES, MENU_ITEMS } from './constants';
 import { MenuItem, Category, CartItem, Variant, Order, AttendanceRecord, StaffMember, OrderType } from './types';
 import { GeminiAssistant } from './components/GeminiAssistant';
@@ -30,9 +30,12 @@ const App = () => {
   const [pinError, setPinError] = useState(false);
   
   // -- Staff Attendance State --
-  const [adminView, setAdminView] = useState<'dashboard' | 'kitchen' | 'attendance' | 'settings'>('dashboard');
+  const [adminView, setAdminView] = useState<'dashboard' | 'kitchen' | 'attendance' | 'settings' | 'reports'>('dashboard');
   const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
   const [staffNameInput, setStaffNameInput] = useState(''); // For Attendance Check-in
+
+  // -- Reports State --
+  const [reportPeriod, setReportPeriod] = useState<'daily' | 'weekly' | 'monthly' | 'yearly'>('daily');
 
   // -- Settings State --
   const [settingsTab, setSettingsTab] = useState<'staff' | 'menu' | 'privacy'>('staff');
@@ -271,6 +274,69 @@ const App = () => {
     setStaffNameInput('');
   };
 
+  // -- Report Handlers --
+  const getFilteredOrders = () => {
+    const now = new Date();
+    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    
+    return orders.filter(order => {
+      const orderDate = new Date(order.timestamp);
+      
+      switch (reportPeriod) {
+        case 'daily':
+          return orderDate >= startOfDay;
+        case 'weekly':
+          const startOfWeek = new Date(now);
+          startOfWeek.setDate(now.getDate() - 7);
+          return orderDate >= startOfWeek;
+        case 'monthly':
+          return orderDate.getMonth() === now.getMonth() && orderDate.getFullYear() === now.getFullYear();
+        case 'yearly':
+          return orderDate.getFullYear() === now.getFullYear();
+        default:
+          return true;
+      }
+    });
+  };
+
+  const handleExportExcel = () => {
+    const filteredOrders = getFilteredOrders();
+    if (filteredOrders.length === 0) return;
+
+    // Create CSV header
+    const headers = ['Order ID', 'Date', 'Time', 'Type', 'Items', 'Total Amount', 'Status'];
+    
+    // Create CSV rows
+    const rows = filteredOrders.map(order => {
+      const itemsString = order.items.map(i => `${i.quantity}x ${i.name}`).join('; ');
+      return [
+        order.orderNumber,
+        order.timestamp.toLocaleDateString(),
+        order.timestamp.toLocaleTimeString(),
+        order.orderType,
+        `"${itemsString}"`, // Quote items to handle commas
+        order.totalAmount,
+        order.status
+      ].join(',');
+    });
+
+    // Combine header and rows
+    const csvContent = [headers.join(','), ...rows].join('\n');
+
+    // Create a Blob
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    
+    // Create download link
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `sales_report_${reportPeriod}_${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   // -- Settings Handlers --
   const handleAddStaff = () => {
     if (!newStaffName.trim() || !newStaffRate) return;
@@ -361,6 +427,10 @@ const App = () => {
       default: return 'bg-gray-100 text-gray-800';
     }
   };
+
+  // Report filtered data
+  const filteredOrders = getFilteredOrders();
+  const reportTotalSales = filteredOrders.reduce((sum, order) => sum + order.totalAmount, 0);
 
   return (
     <div className="h-screen w-full bg-slate-50 flex flex-col overflow-hidden font-sans text-slate-800">
@@ -795,6 +865,12 @@ const App = () => {
                 <Users size={18} /> Staff Attendance
               </button>
               <button 
+                onClick={() => setAdminView('reports')}
+                className={`py-4 font-bold text-sm border-b-2 transition-colors flex items-center gap-2 whitespace-nowrap ${adminView === 'reports' ? 'border-brand-orange text-brand-orange' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+              >
+                <FileSpreadsheet size={18} /> Sales Reports
+              </button>
+              <button 
                 onClick={() => setAdminView('settings')}
                 className={`py-4 font-bold text-sm border-b-2 transition-colors flex items-center gap-2 whitespace-nowrap ${adminView === 'settings' ? 'border-brand-orange text-brand-orange' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
               >
@@ -982,6 +1058,94 @@ const App = () => {
                                }
                            </div>
                        )}
+                    </div>
+                 )}
+
+                 {/* Reports View */}
+                 {adminView === 'reports' && (
+                    <div className="space-y-6">
+                       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                         <h3 className="font-bold text-2xl text-gray-800 flex items-center gap-2">
+                             <BarChart3 className="text-brand-orange" /> Sales Reports
+                          </h3>
+                          
+                          <div className="flex bg-white p-1 rounded-lg shadow-sm border border-gray-200">
+                             {(['daily', 'weekly', 'monthly', 'yearly'] as const).map((period) => (
+                                <button
+                                   key={period}
+                                   onClick={() => setReportPeriod(period)}
+                                   className={`px-4 py-2 rounded-md text-sm font-bold capitalize transition-all ${reportPeriod === period ? 'bg-brand-brown text-white shadow-sm' : 'text-gray-500 hover:text-gray-800'}`}
+                                >
+                                   {period}
+                                </button>
+                             ))}
+                          </div>
+                       </div>
+
+                       {/* Summary Cards */}
+                       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                          <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+                             <p className="text-gray-500 text-sm font-semibold mb-2">Total Revenue ({reportPeriod})</p>
+                             <p className="text-3xl font-bold text-brand-brown">{formatPrice(reportTotalSales)}</p>
+                          </div>
+                          <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+                             <p className="text-gray-500 text-sm font-semibold mb-2">Total Orders</p>
+                             <p className="text-3xl font-bold text-gray-800">{filteredOrders.length}</p>
+                          </div>
+                          <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-center">
+                              <button 
+                                onClick={handleExportExcel}
+                                disabled={filteredOrders.length === 0}
+                                className="flex flex-col items-center gap-2 text-green-600 hover:text-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                              >
+                                 <div className="w-12 h-12 bg-green-50 rounded-full flex items-center justify-center">
+                                    <Download size={24} />
+                                 </div>
+                                 <span className="font-bold text-sm">Download Excel</span>
+                              </button>
+                          </div>
+                       </div>
+
+                       {/* Preview Table */}
+                       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                          <div className="p-6 border-b border-gray-100">
+                            <h4 className="font-bold text-gray-800">Report Preview</h4>
+                          </div>
+                          <div className="overflow-x-auto">
+                            <table className="w-full text-left">
+                              <thead className="bg-gray-50 text-gray-500 text-xs uppercase tracking-wider font-semibold">
+                                <tr>
+                                  <th className="px-6 py-4">Date & Time</th>
+                                  <th className="px-6 py-4">Order #</th>
+                                  <th className="px-6 py-4">Type</th>
+                                  <th className="px-6 py-4 text-right">Amount</th>
+                                  <th className="px-6 py-4 text-center">Status</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-gray-100">
+                                {filteredOrders.length === 0 ? (
+                                  <tr>
+                                    <td colSpan={5} className="px-6 py-12 text-center text-gray-400">
+                                      No data found for this period.
+                                    </td>
+                                  </tr>
+                                ) : (
+                                  filteredOrders.map((order) => (
+                                    <tr key={order.id} className="hover:bg-slate-50">
+                                      <td className="px-6 py-4 text-sm text-gray-600">
+                                        {order.timestamp.toLocaleDateString()} <span className="text-gray-400">{order.timestamp.toLocaleTimeString()}</span>
+                                      </td>
+                                      <td className="px-6 py-4 font-mono text-sm font-bold text-gray-700">{order.orderNumber}</td>
+                                      <td className="px-6 py-4 text-sm">{order.orderType}</td>
+                                      <td className="px-6 py-4 text-right font-bold text-gray-800">{formatPrice(order.totalAmount)}</td>
+                                      <td className="px-6 py-4 text-center text-sm">{order.status}</td>
+                                    </tr>
+                                  ))
+                                )}
+                              </tbody>
+                            </table>
+                          </div>
+                       </div>
                     </div>
                  )}
 
