@@ -44,9 +44,17 @@ const App = () => {
     { id: '2', name: 'Maria Santos', hourlyRate: 75, role: 'Manager', joinedDate: new Date() }
   ]);
   
-  // Menu Editing State
+  // Menu Management State
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const [editImageUrl, setEditImageUrl] = useState('');
+  const [isAddingItem, setIsAddingItem] = useState(false);
+  const [newItemForm, setNewItemForm] = useState({
+    name: '',
+    category: 'Iced Coffee' as Category,
+    price: '',
+    description: '',
+    imageUrl: ''
+  });
 
   // New Staff Form
   const [newStaffName, setNewStaffName] = useState('');
@@ -381,6 +389,29 @@ const App = () => {
     setCurrentPinInput('');
     setNewPinInput('');
     setConfirmPinInput('');
+  };
+
+  const handleAddItem = () => {
+    if (!newItemForm.name || !newItemForm.price) return;
+  
+    const newItem: MenuItem = {
+      id: `new-${Date.now()}`,
+      name: newItemForm.name,
+      category: newItemForm.category,
+      basePrice: parseFloat(newItemForm.price),
+      description: newItemForm.description,
+      imageUrl: newItemForm.imageUrl,
+    };
+  
+    setMenuItems(prev => [newItem, ...prev]);
+    setIsAddingItem(false);
+    setNewItemForm({
+      name: '',
+      category: 'Iced Coffee',
+      price: '',
+      description: '',
+      imageUrl: ''
+    });
   };
 
   const handleEditImage = (item: MenuItem) => {
@@ -1259,7 +1290,7 @@ const App = () => {
                                : 'border-transparent text-gray-600 hover:bg-gray-50'
                             }`}
                           >
-                             <ImageIcon size={20} /> Menu Images
+                             <ImageIcon size={20} /> Menu Management
                           </button>
                           <button 
                             onClick={() => setSettingsTab('privacy')}
@@ -1362,15 +1393,91 @@ const App = () => {
                              </div>
                           )}
 
-                          {/* Menu Image Management */}
+                          {/* Menu Management */}
                           {settingsTab === 'menu' && (
                              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 md:p-8">
                                 <div className="flex items-center justify-between mb-8">
                                    <div>
-                                      <h3 className="font-bold text-xl text-gray-800">Menu Image Management</h3>
-                                      <p className="text-gray-500 text-sm">Add or update images for menu items.</p>
+                                      <h3 className="font-bold text-xl text-gray-800">Menu Management</h3>
+                                      <p className="text-gray-500 text-sm">Add new items or update details.</p>
                                    </div>
+                                   <button 
+                                      onClick={() => setIsAddingItem(!isAddingItem)}
+                                      className="bg-brand-orange text-white px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-2 hover:bg-brand-red transition-colors"
+                                   >
+                                      {isAddingItem ? <X size={18} /> : <Plus size={18} />} 
+                                      {isAddingItem ? 'Cancel' : 'Add New Item'}
+                                   </button>
                                 </div>
+
+                                {isAddingItem && (
+                                   <div className="bg-gray-50 p-6 rounded-xl border border-gray-200 mb-8 animate-in fade-in slide-in-from-top-4">
+                                      <h4 className="font-bold text-gray-700 mb-4">New Menu Item Details</h4>
+                                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                                         <div>
+                                            <label className="block text-xs font-bold text-gray-500 mb-1 uppercase">Item Name</label>
+                                            <input 
+                                               type="text" 
+                                               value={newItemForm.name}
+                                               onChange={e => setNewItemForm({...newItemForm, name: e.target.value})}
+                                               className="w-full border border-gray-200 rounded-lg p-3 focus:outline-none focus:border-brand-orange"
+                                               placeholder="e.g. New Special Latte"
+                                            />
+                                         </div>
+                                         <div>
+                                            <label className="block text-xs font-bold text-gray-500 mb-1 uppercase">Category</label>
+                                            <select 
+                                               value={newItemForm.category}
+                                               onChange={e => setNewItemForm({...newItemForm, category: e.target.value as Category})}
+                                               className="w-full border border-gray-200 rounded-lg p-3 focus:outline-none focus:border-brand-orange bg-white"
+                                            >
+                                               {CATEGORIES.map(cat => (
+                                                  <option key={cat} value={cat}>{cat}</option>
+                                               ))}
+                                            </select>
+                                         </div>
+                                         <div>
+                                            <label className="block text-xs font-bold text-gray-500 mb-1 uppercase">Base Price (₱)</label>
+                                            <input 
+                                               type="number" 
+                                               value={newItemForm.price}
+                                               onChange={e => setNewItemForm({...newItemForm, price: e.target.value})}
+                                               className="w-full border border-gray-200 rounded-lg p-3 focus:outline-none focus:border-brand-orange"
+                                               placeholder="0.00"
+                                            />
+                                         </div>
+                                         <div>
+                                            <label className="block text-xs font-bold text-gray-500 mb-1 uppercase">Image URL (Optional)</label>
+                                            <input 
+                                               type="text" 
+                                               value={newItemForm.imageUrl}
+                                               onChange={e => setNewItemForm({...newItemForm, imageUrl: e.target.value})}
+                                               className="w-full border border-gray-200 rounded-lg p-3 focus:outline-none focus:border-brand-orange"
+                                               placeholder="https://..."
+                                            />
+                                         </div>
+                                         <div className="md:col-span-2">
+                                            <label className="block text-xs font-bold text-gray-500 mb-1 uppercase">Description</label>
+                                            <input 
+                                               type="text" 
+                                               value={newItemForm.description}
+                                               onChange={e => setNewItemForm({...newItemForm, description: e.target.value})}
+                                               className="w-full border border-gray-200 rounded-lg p-3 focus:outline-none focus:border-brand-orange"
+                                               placeholder="Description of the item..."
+                                            />
+                                         </div>
+                                      </div>
+                                      <div className="flex justify-end">
+                                         <button 
+                                            onClick={handleAddItem}
+                                            disabled={!newItemForm.name || !newItemForm.price}
+                                            className="bg-brand-brown text-white font-bold py-3 px-8 rounded-lg hover:bg-gray-800 disabled:opacity-50 transition-colors flex items-center gap-2"
+                                         >
+                                            <Save size={18} /> Save Item
+                                         </button>
+                                      </div>
+                                   </div>
+                                )}
 
                                 <div className="overflow-x-auto max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
                                    <table className="w-full text-left">
